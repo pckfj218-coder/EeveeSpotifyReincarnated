@@ -122,6 +122,18 @@ jobs:
           rm -rf Payload
           
           unzip -q "$(basename "$OUT_IPA")"
+          # Register mspotify URL scheme.
+          python3 - <<'PY'
+          import plistlib
+          path = "Payload/Spotify.app/Info.plist"
+          with open(path, "rb") as f:
+              info = plistlib.load(f)
+          entries = info.setdefault("CFBundleURLTypes", [])
+          if not any("mspotify" in item.get("CFBundleURLSchemes", []) for item in entries):
+              entries.append({"CFBundleURLName": "EeveeSpotify URL Control", "CFBundleURLSchemes": ["mspotify"]})
+          with open(path, "wb") as f:
+              plistlib.dump(info, f, fmt=plistlib.FMT_BINARY)
+          PY
           mkdir -p "Payload/Spotify.app/PlugIns"
           rm -rf "Payload/Spotify.app/PlugIns/OpenSpotifySafariExtension.appex"
           cp -R "$OPENSPOTIFY_APPEX" "Payload/Spotify.app/PlugIns/OpenSpotifySafariExtension.appex"

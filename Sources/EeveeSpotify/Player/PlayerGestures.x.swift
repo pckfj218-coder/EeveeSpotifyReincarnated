@@ -45,6 +45,47 @@ final class PlayerGestures: NSObject, UIGestureRecognizerDelegate {
     static weak var playback: NSObject?
     private static var tapKey: UInt8 = 0
     private static let seekStep = 10.0
+    static func performMSpotifyCommand(_ command: String) -> Bool {
+        if let object = playback {
+            let player = unsafeBitCast(object, to: NowPlayingPlayback.self)
+            switch command {
+            case "play":
+                player.setPaused(false)
+            case "pause":
+                player.setPaused(true)
+            case "toggle":
+                player.setPaused(!player.isPaused)
+            case "next":
+                player.skipToNextWhileDragging(false)
+            case "previous":
+                player.skipToPreviousWhileDragging(false)
+            default:
+                return false
+            }
+            return true
+        }
+
+        let ids: [String]
+        switch command {
+        case "play", "pause", "toggle": ids = ["SPTNowPlayingPlayButton"]
+        case "next": ids = ["SPTNowPlayingNextTrackButton"]
+        case "previous": ids = ["SPTNowPlayingPreviousTrackButton"]
+        default: return false
+        }
+
+        for window in UIApplication.shared.windows.reversed() {
+            for id in ids {
+                if let control = window.eeveeFirst(UIControl.self, where: { $0.accessibilityIdentifier == id }) {
+                    let label = (control.accessibilityLabel ?? "").lowercased()
+                    if command == "play" && label.contains("pause") { return true }
+                    if command == "pause" && label.contains("play") { return true }
+                    control.sendActions(for: .touchUpInside)
+                    return true
+                }
+            }
+        }
+        return false
+    }
 
     private let actions: [PlayerZoneAction] = {
         let sides: [PlayerZoneAction] = PlayerGestures.options.doubleTap == .seek ? [.seekBack, .seekForward] : [.previous, .next]
