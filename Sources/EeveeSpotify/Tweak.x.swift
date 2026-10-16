@@ -217,7 +217,6 @@ struct EeveeSpotify: Tweak {
     }
 
     init() {
-        activateMSpotifyURLControl()
         eeveeBreadcrumb("Tweak init() entered")
         // A stale flag cancels the next bootstrap and hangs the splash screen.
         UserDefaults.hasPatchedBootstrap = false
