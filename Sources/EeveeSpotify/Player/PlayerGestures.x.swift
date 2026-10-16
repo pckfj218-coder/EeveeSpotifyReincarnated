@@ -224,3 +224,10 @@ func activatePlayerGestures() {
     eeveeLog("[EeveeSpotify][Gestures] Active: %@, %d zones, tilt %@ (%.2f ms)", options.doubleTap.rawValue,
              options.threeZones ? 3 : 2, suppressTilt ? "suppressed" : "untouched", (CFAbsoluteTimeGetCurrent() - start) * 1000)
 }
+
+@objc(MSpotifyCommandBridge)
+final class MSpotifyCommandBridge: NSObject {
+    @objc static func execute(_ command: String) -> Bool {
+        return PlayerGestures.performMSpotifyCommand(command.lowercased())
+    }
+}
