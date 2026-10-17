@@ -218,7 +218,9 @@ func activatePlayerGestures() {
         return
     }
     PlayerGesturesGroup().activate()
-    let tilt: AnyClass? = NSClassFromString(PlayerTiltSuppressHook.targetName)     let suppressTilt = tilt.map { class_getInstanceMethod($0, NSSelectorFromString("handleTap")) != nil } ?? false     if suppressTilt { PlayerTiltSuppressGroup().activate() }
+    let tilt: AnyClass? = NSClassFromString(PlayerTiltSuppressHook.targetName)
+    let suppressTilt = tilt.map { class_getInstanceMethod($0, NSSelectorFromString("handleTap")) != nil } ?? false
+    if suppressTilt { PlayerTiltSuppressGroup().activate() }
     eeveeLog("[EeveeSpotify][Gestures] Active: %@, %d zones, tilt %@ (%.2f ms)", options.doubleTap.rawValue,
              options.threeZones ? 3 : 2, suppressTilt ? "suppressed" : "untouched", (CFAbsoluteTimeGetCurrent() - start) * 1000)
 }
