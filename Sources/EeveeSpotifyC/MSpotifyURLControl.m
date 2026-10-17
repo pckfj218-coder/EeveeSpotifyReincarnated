@@ -30,9 +30,40 @@ static BOOL MSSendCommand(NSString *command) {
     return NO;
 }
 
+static void MSShowTestAlert(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIViewController *controller = nil;
+        for (UIWindow *window in UIApplication.sharedApplication.windows) {
+            if (window.isKeyWindow) {
+                controller = window.rootViewController;
+                break;
+            }
+        }
+        if (!controller) {
+            controller = UIApplication.sharedApplication.windows.firstObject.rootViewController;
+        }
+        while (controller.presentedViewController) {
+            controller = controller.presentedViewController;
+        }
+        if (!controller) return;
+
+        UIAlertController *alert =
+            [UIAlertController alertControllerWithTitle:@"MSpotifyURLControl OK"
+                                                message:@"mspotify URL received"
+                                         preferredStyle:UIAlertControllerStyleAlert];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK"
+                                                  style:UIAlertActionStyleDefault
+                                                handler:nil]];
+        [controller presentViewController:alert animated:YES completion:nil];
+    });
+}
 static BOOL MSHandleURL(NSURL *url) {
     if (![[url.scheme lowercaseString] isEqualToString:@"mspotify"]) return NO;
     NSString *command = url.host.lowercaseString;
+    if ([command isEqualToString:@"test"]) {
+        MSShowTestAlert();
+        return YES;
+    }
     if (![@[@"play", @"pause", @"toggle", @"next", @"previous"] containsObject:command]) return NO;
     dispatch_async(dispatch_get_main_queue(), ^{ MSSendCommand(command); });
     return YES;
