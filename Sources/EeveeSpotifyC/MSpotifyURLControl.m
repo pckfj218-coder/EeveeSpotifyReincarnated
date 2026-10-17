@@ -5,8 +5,10 @@
 
 static __weak id MSPlaybackController;
 static IMP MSOriginalSetDelegate;
+static IMP MSOriginalSceneSetDelegate;
 static IMP MSOriginalModernOpen;
 static IMP MSOriginalLegacyOpen;
+static IMP MSOriginalSceneOpen;
 
 static BOOL MSSendCommand(NSString *command) {
     id controller = MSPlaybackController;
@@ -100,6 +102,34 @@ static void MSSetDelegate(id self, SEL _cmd, id delegate) {
     if (delegate) MSInstallDelegateHooks(delegate);
 }
 
+static void MSSceneOpen(id self, SEL _cmd, UIScene *scene, NSSet *contexts) {
+    for (id context in contexts) {
+        NSURL *url = nil;
+        if ([context respondsToSelector:@selector(URL)]) {
+            url = ((id (*)(id, SEL))objc_msgSend)(context, @selector(URL));
+        }
+        if (url && MSHandleURL(url)) return;
+    }
+    if (MSOriginalSceneOpen) {
+        ((void (*)(id, SEL, UIScene *, NSSet *))MSOriginalSceneOpen)(self, _cmd, scene, contexts);
+    }
+}
+
+static void MSInstallSceneDelegateHooks(id delegate) {
+    Class cls = object_getClass(delegate);
+    SEL selector = NSSelectorFromString(@"scene:openURLContexts:");
+    Method method = class_getInstanceMethod(cls, selector);
+    if (method && method_getImplementation(method) != (IMP)MSSceneOpen) {
+        MSOriginalSceneOpen = method_getImplementation(method);
+        method_setImplementation(method, (IMP)MSSceneOpen);
+    }
+}
+
+static void MSSceneSetDelegate(id self, SEL _cmd, id delegate) {
+    ((void (*)(id, SEL, id))MSOriginalSceneSetDelegate)(self, _cmd, delegate);
+    if (delegate) MSInstallSceneDelegateHooks(delegate);
+}
+
 static id MSPlaybackInit(id self, SEL _cmd, id player, id testManager, id streamClient) {
     id storedOriginal = objc_getAssociatedObject(object_getClass(self), _cmd);
     IMP original = NULL;
@@ -119,6 +149,19 @@ __attribute__((constructor)) static void MSInitialize(void) {
         MSOriginalSetDelegate = method_getImplementation(setDelegate);
         method_setImplementation(setDelegate, (IMP)MSSetDelegate);
         if (UIApplication.sharedApplication.delegate) MSInstallDelegateHooks(UIApplication.sharedApplication.delegate);
+
+        if (@available(iOS 13.0, *)) {
+            Method sceneSetDelegate = class_getInstanceMethod(UIScene.class, @selector(setDelegate:));
+            if (sceneSetDelegate) {
+                MSOriginalSceneSetDelegate = method_getImplementation(sceneSetDelegate);
+                if (MSOriginalSceneSetDelegate != (IMP)MSSceneSetDelegate) {
+                    method_setImplementation(sceneSetDelegate, (IMP)MSSceneSetDelegate);
+                }
+            }
+            for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+                if (scene.delegate) MSInstallSceneDelegateHooks(scene.delegate);
+            }
+        }
 
         Class playerClass = NSClassFromString(@"SPTNowPlayingPlaybackControllerImplementation");
         SEL initSelector = NSSelectorFromString(@"initWithPlayer:testManager:inStreamClient:");
