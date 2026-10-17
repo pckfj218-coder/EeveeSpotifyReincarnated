@@ -70,7 +70,13 @@ static void MSSetDelegate(id self, SEL _cmd, id delegate) {
 }
 
 static id MSPlaybackInit(id self, SEL _cmd, id player, id testManager, id streamClient) {
-    IMP original = (IMP)objc_getAssociatedObject(object_getClass(self), _cmd);
+    id storedOriginal = objc_getAssociatedObject(object_getClass(self), _cmd);
+    IMP original = NULL;
+    if ([storedOriginal isKindOfClass:[NSValue class]]) {
+        union { void *pointer; IMP implementation; } bits;
+        bits.pointer = [(NSValue *)storedOriginal pointerValue];
+        original = bits.implementation;
+    }
     id result = ((id (*)(id, SEL, id, id, id))original)(self, _cmd, player, testManager, streamClient);
     MSPlaybackController = result;
     return result;
@@ -88,7 +94,10 @@ __attribute__((constructor)) static void MSInitialize(void) {
         Method initMethod = class_getInstanceMethod(playerClass, initSelector);
         if (initMethod) {
             IMP original = method_getImplementation(initMethod);
-            objc_setAssociatedObject(playerClass, initSelector, (__bridge id)original, OBJC_ASSOCIATION_ASSIGN);
+            union { IMP implementation; void *pointer; } bits;
+            bits.implementation = original;
+            NSValue *storedOriginal = [NSValue valueWithPointer:bits.pointer];
+            objc_setAssociatedObject(playerClass, initSelector, storedOriginal, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
             method_setImplementation(initMethod, (IMP)MSPlaybackInit);
         }
     });
