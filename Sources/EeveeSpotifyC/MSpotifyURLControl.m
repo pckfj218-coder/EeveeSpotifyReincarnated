@@ -60,8 +60,21 @@ static void MSShowTestAlert(void) {
     });
 }
 static BOOL MSHandleURL(NSURL *url) {
-    if (![[url.scheme lowercaseString] isEqualToString:@"mspotify"]) return NO;
-    NSString *command = url.host.lowercaseString;
+    NSString *scheme = url.scheme.lowercaseString;
+    NSString *command = nil;
+
+    if ([scheme isEqualToString:@"mspotify"]) {
+        command = url.host.lowercaseString;
+    } else if ([scheme isEqualToString:@"spotify"] &&
+               [url.host.lowercaseString isEqualToString:@"mspotify"]) {
+        command = url.path.lowercaseString;
+        while ([command hasPrefix:@"/"]) {
+            command = [command substringFromIndex:1];
+        }
+    } else {
+        return NO;
+    }
+
     if ([command isEqualToString:@"test"]) {
         MSShowTestAlert();
         return YES;
